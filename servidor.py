@@ -71,8 +71,8 @@ if not verificar(mensagem_verificar_cliente, assinatura_cliente, vk_cliente_para
 print('[+] Assinatura do cliente válida.')
 
 # --- Geração e Envio da Chave Pública DH do Servidor ---
-dh_server = DiffieHellman(group=14, key_bits=540)
-B_public = dh_server.get_public_key()
+dh_server = DiffieHellman(group=14)
+B_public = dh_server.generate_public_key()
 
 # Mensagem a ser assinada pelo servidor: sua chave pública DH + seu username
 mensagem_assinar_servidor = str(B_public).encode() + USERNAME

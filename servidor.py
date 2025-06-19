@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 # Importações atualizadas para ECDSA e Diffie-Hellman
 from ecdsa_utils import assinar, verificar, carregar_chave_privada, carregar_chave_publica
-from diffiehellman import DiffieHellman
+from diffiehellman.diffiehellman import DiffieHellman
 
 # Configuração da Rede
 HOST = '0.0.0.0'

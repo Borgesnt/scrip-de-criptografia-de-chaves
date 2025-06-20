@@ -1,14 +1,17 @@
 # servidor.py
 import socket
-import os # Ainda necessário para os.urandom, mas para IV, não para DH
+import os
 import hashlib
 import hmac
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+# NOVAS IMPORTAÇÕES PARA CRYPTOGRAPHY E PBKDF2
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes # <<< CORREÇÃO AQUI
+from cryptography.hazmat.primitives.asymmetric import dh
+from cryptography.hazmat.primitives import serialization
 
-# Importações atualizadas para ECDSA e Diffie-Hellman
+# Importações para ECDSA
 from ecdsa_utils import assinar, verificar, carregar_chave_privada, carregar_chave_publica
-from diffiehellman.diffiehellman import DiffieHellman
 
 # Configuração da Rede
 HOST = '0.0.0.0'
@@ -16,7 +19,6 @@ PORT = 5000
 USERNAME = b'servidor'
 
 # Parâmetros PBKDF2 (devem ser consistentes entre cliente e servidor)
-# Em um cenário real, o salt seria gerado aleatoriamente por sessão ou chave e compartilhado.
 salt = b'um_salt_seguro_e_aleatorio_para_as_chaves_derivadas'
 iterations = 100000
 
@@ -31,6 +33,15 @@ except FileNotFoundError:
     print("Por favor, execute 'python gerar_chaves.py' primeiro para criar as chaves.")
     exit()
 
+# --- Configuração dos Parâmetros Diffie-Hellman ---
+# Gerar parâmetros DH (g e p) para a sessão.
+# Usamos generator=2 e um tamanho de chave de 2048 bits.
+parameters = dh.generate_parameters(generator=2, key_size=2048)
+parameter_bytes = parameters.parameter_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.ParameterFormat.PKCS3
+)
+
 # Criar socket
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.bind((HOST, PORT))
@@ -41,7 +52,11 @@ conn, addr = sock.accept()
 print(f'[+] Conexão recebida de {addr}')
 
 # --- Handshake Diffie-Hellman e Verificação ECDSA ---
-# Receber a chave pública DH do cliente (A_public) e sua assinatura
+# PASSO 1: Servidor envia seus parâmetros DH (g, p)
+conn.sendall(parameter_bytes)
+print('[+] Parâmetros DH enviados ao cliente.')
+
+# PASSO 2: Receber a chave pública DH do cliente (A_public_bytes) e sua assinatura
 data = conn.recv(4096)
 if not data:
     print("[-] Cliente desconectou inesperadamente durante o handshake.")
@@ -49,21 +64,21 @@ if not data:
     exit()
 
 try:
-    A_public_str, assinatura_cliente, user_cliente = data.split(b'||')
-    A_public = int(A_public_str.decode())
-except ValueError:
-    print("[-] Formato de handshake inválido recebido do cliente.")
+    A_public_bytes, assinatura_cliente, user_cliente = data.split(b'||')
+    # Deserializar a chave pública do cliente
+    A_public_key = serialization.load_pem_public_key(A_public_bytes)
+except (ValueError, TypeError) as e:
+    print(f"[-] Formato de handshake inválido recebido do cliente: {e}")
     conn.close()
     exit()
 
-
-print(f'[+] Recebido Chave Pública DH do Cliente (A): {A_public}')
+print(f'[+] Recebido Chave Pública DH do Cliente.')
 print(f'[+] Cliente: {user_cliente.decode()}')
 
-# A mensagem que o cliente assinou é a sua chave pública DH + seu username
-mensagem_verificar_cliente = A_public_str + user_cliente
+# A mensagem que o cliente assinou é a sua chave pública DH em bytes + seu username
+mensagem_verificar_cliente = A_public_bytes + user_cliente
 
-# Verificar assinatura do cliente com a chave pública do cliente carregada
+# Verificar assinatura do cliente
 if not verificar(mensagem_verificar_cliente, assinatura_cliente, vk_cliente_para_verificar):
     print('[-] Assinatura do cliente inválida. Encerrando.')
     conn.close()
@@ -71,40 +86,47 @@ if not verificar(mensagem_verificar_cliente, assinatura_cliente, vk_cliente_para
 print('[+] Assinatura do cliente válida.')
 
 # --- Geração e Envio da Chave Pública DH do Servidor ---
-dh_server = DiffieHellman(group=14)
-# GERAÇÃO DA CHAVE PRIVADA - PASSO ADICIONADO AQUI
-dh_server.generate_private_key() # <--- ADICIONE ESTA LINHA
-B_public = dh_server.generate_public_key() # Agora deve retornar um valor
+# Gerar chave privada do servidor com base nos parâmetros
+server_private_key = parameters.generate_private_key()
+server_public_key = server_private_key.public_key()
 
-# Mensagem a ser assinada pelo servidor: sua chave pública DH + seu username
-mensagem_assinar_servidor = str(B_public).encode() + USERNAME
+# Serializar a chave pública do servidor para enviar
+B_public_bytes = server_public_key.public_bytes(
+    encoding=serialization.Encoding.PEM,
+    format=serialization.PublicFormat.SubjectPublicKeyInfo
+)
+
+# Mensagem a ser assinada pelo servidor: sua chave pública DH em bytes + seu username
+mensagem_assinar_servidor = B_public_bytes + USERNAME
 assinatura_servidor = assinar(mensagem_assinar_servidor, sk_servidor)
 
 # Enviar a chave pública DH do servidor e sua assinatura
-conn.sendall(str(B_public).encode() + b'||' + assinatura_servidor + b'||' + USERNAME)
-print(f'[+] Enviado Chave Pública DH do Servidor (B): {B_public}')
+conn.sendall(B_public_bytes + b'||' + assinatura_servidor + b'||' + USERNAME)
+print(f'[+] Enviado Chave Pública DH do Servidor (B).')
 
 # --- Cálculo da Chave Secreta Compartilhada DH ---
-S = dh_server.generate_shared_key(A_public)
+# A chave compartilhada é o resultado do DH exchange
+shared_key = server_private_key.exchange(A_public_key)
 print(f'[+] Chave secreta compartilhada S gerada.')
 
 # --- Derivação de Chaves AES e HMAC ---
 # Usando o mesmo salt e iterations para garantir que cliente e servidor derivem as mesmas chaves
+# O shared_key já é bytes, então não precisa de str().encode()
 kdf_aes = PBKDF2HMAC(
-    algorithm=hashlib.sha256(),
+    algorithm=hashes.SHA256(), # <<< CORREÇÃO AQUI
     length=32,
     salt=salt,
     iterations=iterations,
 )
-Key_AES = kdf_aes.derive(str(S).encode())
+Key_AES = kdf_aes.derive(shared_key)
 
 kdf_hmac = PBKDF2HMAC(
-    algorithm=hashlib.sha256(),
+    algorithm=hashes.SHA256(), # <<< CORREÇÃO AQUI
     length=32,
     salt=salt,
     iterations=iterations,
 )
-Key_HMAC = kdf_hmac.derive(str(S).encode())
+Key_HMAC = kdf_hmac.derive(shared_key)
 
 print('[+] Chaves AES e HMAC derivadas.')
 
@@ -115,7 +137,6 @@ if not pacote_completo:
     conn.close()
     exit()
 
-# O pacote é HMAC || IV || Criptografada
 hmac_tag = pacote_completo[:32]
 iv = pacote_completo[32:48]
 criptografada = pacote_completo[48:]
@@ -133,14 +154,14 @@ cipher = Cipher(algorithms.AES(Key_AES), modes.CBC(iv))
 decryptor = cipher.decryptor()
 mensagem_descriptografada_com_padding = decryptor.update(criptografada) + decryptor.finalize()
 
-# Remover padding (PKCS7)
+# No servidor.py, na seção de remoção de padding
 try:
     pad = mensagem_descriptografada_com_padding[-1]
-    if pad < 1 or pad > 16: # Validação básica do padding
-        raise ValueError("Padding inválido.")
-    # Verificar se todos os bytes de padding são iguais ao valor do padding
-    if not all(mensagem_descriptografada_com_padding[-pad:] == bytes([pad]) * pad):
-        raise ValueError("Padding inválido.")
+    if pad < 1 or pad > 16:
+        raise ValueError("Padding inválido: Tamanho do padding fora do intervalo válido.")
+    # A CORREÇÃO É AQUI: REMOVA 'all()'
+    if mensagem_descriptografada_com_padding[-pad:] != bytes([pad]) * pad: # <<< CORREÇÃO AQUI
+        raise ValueError("Padding inválido: Bytes de padding inconsistentes.")
     mensagem_final = mensagem_descriptografada_com_padding[:-pad]
 except ValueError as e:
     print(f"[-] Erro ao remover padding: {e}. Possível falha na descriptografia ou alteração da mensagem.")

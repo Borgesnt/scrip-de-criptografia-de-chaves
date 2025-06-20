@@ -72,7 +72,9 @@ print('[+] Assinatura do cliente válida.')
 
 # --- Geração e Envio da Chave Pública DH do Servidor ---
 dh_server = DiffieHellman(group=14)
-B_public = dh_server.generate_public_key()
+# GERAÇÃO DA CHAVE PRIVADA - PASSO ADICIONADO AQUI
+dh_server.generate_private_key() # <--- ADICIONE ESTA LINHA
+B_public = dh_server.generate_public_key() # Agora deve retornar um valor
 
 # Mensagem a ser assinada pelo servidor: sua chave pública DH + seu username
 mensagem_assinar_servidor = str(B_public).encode() + USERNAME

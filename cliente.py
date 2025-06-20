@@ -32,7 +32,9 @@ except FileNotFoundError:
 
 # --- Geração da Chave Pública DH do Cliente ---
 dh_client = DiffieHellman(group=14)
-A_public = dh_client.generate_public_key()
+# GERAÇÃO DA CHAVE PRIVADA - PASSO ADICIONADO AQUI
+dh_client.generate_private_key() # <--- ADICIONE ESTA LINHA
+A_public = dh_client.generate_public_key() # Agora deve retornar um valor
 
 # Mensagem a ser assinada pelo cliente: sua chave pública DH + seu username
 mensagem_assinar_cliente = str(A_public).encode() + USERNAME

@@ -35,9 +35,8 @@ Você precisará do Python 3.6 ou superior e das seguintes bibliotecas Python:
 
 1.  **Clone o repositório** (ou crie os arquivos manualmente em uma pasta):
     ```bash
-    git clone <URL_DO_SEU_REPOSITORIO>
-    cd <nome_da_pasta_do_projeto>
-    ```
+    git clone https://github.com/Borgesnt/scrip-de-criptografia-de-chaves.git
+    cd scrip-de-criptografia-de-chaves    ```
 
 2.  **Instale as dependências** via pip:
     ```bash

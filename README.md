@@ -2,19 +2,6 @@
 
 Este projeto demonstra uma comunicação cliente-servidor segura, incorporando múltiplos princípios de criptografia para garantir confidencialidade, integridade e autenticidade. Ele utiliza a troca de chaves Diffie-Hellman (DH) para estabelecer uma chave secreta compartilhada, combinada com assinaturas digitais ECDSA (Elliptic Curve Digital Signature Algorithm) para autenticação mútua das partes. A criptografia das mensagens é realizada com AES no modo CBC, e a integridade e autenticidade das mensagens são garantidas com HMAC.
 
-## Histórico de Evolução e Correções
-
-Este projeto passou por diversas etapas de refinamento e depuração para garantir seu funcionamento robusto:
-
-* **Início com DH Manual:** A versão inicial implementava o Diffie-Hellman manualmente, definindo parâmetros `p` e `g` e gerando expoentes secretos.
-* **Transição para `diffiehellman`:** Migramos para a biblioteca `diffiehellman` para simplificar a implementação do DH.
-* **Depuração da `diffiehellman`:** Encontramos e corrigimos problemas com a API da `diffiehellman` (ex: `get_public_key` para `generate_public_key`, necessidade de chamar `generate_private_key`, e o parâmetro `key_bits`).
-* **Problemas com `diffiehellman` e Transição para `cryptography`:** Devido a comportamentos inconsistentes da biblioteca `diffiehellman` (como retornar `None` para chaves públicas mesmo após a geração), optou-se por migrar a implementação de Diffie-Hellman para a biblioteca padrão e mais robusta do Python, `cryptography`.
-* **Ajustes na `cryptography`:** Corrigimos o uso do algoritmo de hash (`hashlib.sha256()` para `hashes.SHA256()`) para PBKDF2HMAC, que é o formato esperado pela `cryptography`.
-* **Padronização de Envio de Chaves:** A troca de chaves públicas DH agora envolve a serialização e deserialização dos objetos de chave pública da `cryptography` para bytes (formato PEM) para transmissão via socket.
-* **Validação de Padding:** A lógica de remoção de padding (PKCS7) no servidor foi aprimorada para uma validação mais robusta, evitando erros de tipo (`TypeError: 'bool' object is not iterable`).
-* **Gerenciamento de Chaves ECDSA:** A geração de chaves ECDSA foi isolada em um script separado (`gerar_chaves.py`) e o carregamento/salvamento das chaves passou a ser feito via arquivos `.pem` no diretório `keys/`, garantindo que cliente e servidor usem as chaves corretas para autenticação.
-* **Documentação Detalhada:** Este `README.md` foi criado para guiar o usuário através de todas as etapas de configuração e execução.
 
 ## Funcionalidades Chave
 
@@ -31,23 +18,6 @@ Este projeto passou por diversas etapas de refinamento e depuração para garant
     * Um HMAC-SHA256 é calculado sobre o IV e o texto cifrado, garantindo que a mensagem não foi adulterada em trânsito e que foi enviada pela parte autêntica.
 * **Derivação de Chaves (PBKDF2HMAC):** Utiliza PBKDF2HMAC com SHA256 para derivar as chaves de sessão (AES Key e HMAC Key) de forma segura a partir da chave secreta DH gerada. Um `salt` e um número de `iterations` (100.000) são usados para aumentar a resistência a ataques de força bruta.
 
-## Estrutura do Projeto
-
-O projeto é organizado nos seguintes arquivos e diretórios:
-
-.
-├── ecdsa_utils.py          # Módulo auxiliar para funções ECDSA (gerar, salvar, carregar, assinar, verificar).
-├── gerar_chaves.py         # Script para gerar e salvar os pares de chaves ECDSA (.pem).
-├── servidor.py             # Implementa o lado do servidor, aguardando conexões e processando a comunicação segura.
-├── cliente.py              # Implementa o lado do cliente, conectando-se ao servidor e iniciando a comunicação.
-├── README.md               # Este arquivo de documentação.
-└── keys/                   # Diretório onde as chaves ECDSA geradas serão armazenadas:
-├── client_private.pem  # Chave privada do cliente.
-├── client_public.pem   # Chave pública do cliente.
-├── server_private.pem  # Chave privada do servidor.
-└── server_public.pem   # Chave pública do servidor.
-
-
 ## Requisitos de Software
 
 Você precisará do **Python 3.6 ou superior** e das seguintes bibliotecas Python, que devem ser instaladas no seu ambiente virtual:
@@ -61,7 +31,7 @@ Siga estes passos para configurar seu ambiente e o projeto:
 
 1.  **Clone o repositório** (ou crie os arquivos manualmente em uma pasta dedicada ao projeto):
     ```bash
-    git clone [https://github.com/Borgesnt/scrip-de-criptografia-de-chaves.git](https://github.com/Borgesnt/scrip-de-criptografia-de-chaves.git)
+    git clone https://github.com/Borgesnt/scrip-de-criptografia-de-chaves.git
     cd scrip-de-criptografia-de-chaves
     ```
 
@@ -86,11 +56,6 @@ Siga estes passos para configurar seu ambiente e o projeto:
         ```powershell
         .\venv\Scripts\Activate.ps1
         ```
-        **Observação para PowerShell:** Se você receber um erro como "Set-ExecutionPolicy" ou "cannot be loaded because running scripts is disabled on this system", pode ser necessário ajustar a política de execução. Abra o PowerShell **como administrador** e execute:
-        ```powershell
-        Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
-        ```
-        Confirme com `S` ou `Y`. Depois de ativar o ambiente virtual e terminar de usar o projeto, você pode reverter a política (opcional): `Set-ExecutionPolicy Restricted -Scope CurrentUser`.
 
     Após a ativação bem-sucedida, o prompt do seu terminal deve mudar para algo como `(venv) seu_usuario@sua_maquina:~/caminho/do/projeto$`, indicando que o ambiente virtual está ativo.
 
@@ -146,7 +111,7 @@ Exemplo Linux/macOS: cd /home/ufc/Documentos/SI/scrip de criptografia de chaves
 
 Exemplo Windows: cd C:\Users\alfre\Documentos\SI\scrip de criptografia de chaves
 
-Ative o ambiente virtual (conforme a seção "Como Ativar o Ambiente Virtual" acima).
+Ative o ambiente virtual.
 
 Execute o script do cliente:
 

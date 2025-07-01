@@ -6,7 +6,7 @@ import hmac
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 # NOVAS IMPORTAÇÕES PARA CRYPTOGRAPHY E PBKDF2
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives import hashes # <<< CORREÇÃO AQUI
+from cryptography.hazmat.primitives import hashes 
 from cryptography.hazmat.primitives.asymmetric import dh
 from cryptography.hazmat.primitives import serialization
 
@@ -113,7 +113,7 @@ print(f'[+] Chave secreta compartilhada S gerada.')
 # Usando o mesmo salt e iterations para garantir que cliente e servidor derivem as mesmas chaves
 # O shared_key já é bytes, então não precisa de str().encode()
 kdf_aes = PBKDF2HMAC(
-    algorithm=hashes.SHA256(), # <<< CORREÇÃO AQUI
+    algorithm=hashes.SHA256(),
     length=32,
     salt=salt,
     iterations=iterations,
@@ -121,7 +121,7 @@ kdf_aes = PBKDF2HMAC(
 Key_AES = kdf_aes.derive(shared_key)
 
 kdf_hmac = PBKDF2HMAC(
-    algorithm=hashes.SHA256(), # <<< CORREÇÃO AQUI
+    algorithm=hashes.SHA256(),
     length=32,
     salt=salt,
     iterations=iterations,
@@ -159,8 +159,7 @@ try:
     pad = mensagem_descriptografada_com_padding[-1]
     if pad < 1 or pad > 16:
         raise ValueError("Padding inválido: Tamanho do padding fora do intervalo válido.")
-    # A CORREÇÃO É AQUI: REMOVA 'all()'
-    if mensagem_descriptografada_com_padding[-pad:] != bytes([pad]) * pad: # <<< CORREÇÃO AQUI
+    if mensagem_descriptografada_com_padding[-pad:] != bytes([pad]) * pad: 
         raise ValueError("Padding inválido: Bytes de padding inconsistentes.")
     mensagem_final = mensagem_descriptografada_com_padding[:-pad]
 except ValueError as e:

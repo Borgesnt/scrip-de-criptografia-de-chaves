@@ -4,13 +4,10 @@ import os
 import hashlib
 import hmac
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-# NOVAS IMPORTAÇÕES PARA CRYPTOGRAPHY E PBKDF2
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives import hashes # <<< CORREÇÃO AQUI
+from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import dh
 from cryptography.hazmat.primitives import serialization
-
-# Importações para ECDSA
 from ecdsa_utils import assinar, verificar, carregar_chave_privada, carregar_chave_publica
 
 # Configuração da Rede
@@ -25,7 +22,7 @@ iterations = 100000
 # --- Carregar Chaves ECDSA do Cliente ---
 try:
     sk_cliente = carregar_chave_privada("keys/client_private.pem")
-    vk_cliente_publica = carregar_chave_publica("keys/client_public.pem") # Para referência/depuração
+    vk_cliente_publica = carregar_chave_publica("keys/client_public.pem") 
     vk_servidor_para_verificar = carregar_chave_publica("keys/server_public.pem")
 except FileNotFoundError:
     print("ERRO: Arquivos de chave ECDSA não encontrados.")
@@ -111,7 +108,7 @@ print('[+] Chave secreta compartilhada S gerada.')
 # --- Derivação de Chaves AES e HMAC ---
 # Usando o mesmo salt e iterations para garantir que cliente e servidor derivem as mesmas chaves
 kdf_aes = PBKDF2HMAC(
-    algorithm=hashes.SHA256(), # <<< CORREÇÃO AQUI
+    algorithm=hashes.SHA256(),
     length=32,
     salt=salt,
     iterations=iterations,
@@ -119,7 +116,7 @@ kdf_aes = PBKDF2HMAC(
 Key_AES = kdf_aes.derive(shared_key)
 
 kdf_hmac = PBKDF2HMAC(
-    algorithm=hashes.SHA256(), # <<< CORREÇÃO AQUI
+    algorithm=hashes.SHA256(), 
     length=32,
     salt=salt,
     iterations=iterations,
